@@ -7,15 +7,6 @@ from selenium.webdriver.common.keys import Keys
 import random
 import pyautogui
 import sys, os
-from userinfor import user_information
-from search import tag_search, target_search, scroll_follower
-from select_follower import move_follower
-from feed_like import frist_like 
-from like_two import nextpage, like_two
-from iffail import backpage, fall_through, if_target_second_action_function
-from target_feed import feed_like
-from frist import action_function, like_reflection, remove_list
-
 
 
 
@@ -44,7 +35,317 @@ from frist import action_function, like_reflection, remove_list
 
 '''
 
+
+def action_function(x,follower_range):
+    global refresh_count
+    print(f"\n------------------  타겟 : {x} 시작  --------------------\n")
+    target_search(x)     # 타겟 설정
+    scroll_follower()
+    for number in range(1,follower_range+1):    # 한 계정당 반복 횟수
+        move_follower(number)     # 팔로워창 설정
+        try:
+            feed_like()     # 팔로워 피드 함수
+        except: 
+            fall_through()  # 좋아요 실패시 함수
+    driver.refresh()              # 새로고침 해줘야 새로운 팔로워들이 다시 보이는것 같음 
+    refresh_count += 1 
+    print(f'---------  다음 타겟으로 넘어가기  < {refresh_count} 번째 > !!!!  --------------\n')
+    time.sleep(5.0)               # 페이지 로딩 대기시간
+    return
+
+
+
+def like_reflection(x,tag_range):
+    global tag_like
+    print(f"------------- 좋아요 반사 시작 =  태그명 : {x}  --------------------\n")
+    tag_search(x)
+    frist_like()
+    for a in range(0,tag_range+1):
+        like_two(x)
+        if a == tag_range - 1:
+            close = driver.find_element_by_xpath("/html/body/div[5]/div[3]/button/div").click()
+            time.sleep(5.0)
+            return 
+
+
+
+
+
+def feed_like():      # 팔로워 피드에 들어가서 누르는 함수 설정
+    global total_like_number                   # 전체 횟수 전역 변수 설정
+    global success_like_number                 # 성공 횟수 전역 변수 설정
+    global Private_number                      # 실패 횟수 전역 변수 설정
+    now = time.strftime('%H시:%M분:%S초')
+    now_follow_data = driver.find_element_by_xpath("//button[contains(text(),'팔로우')]")
+    if now_follow_data.text == "맞팔로우 하기":
+        print(' ------------ 이미 나를 팔로우하는 사람입니다 !! ------------------\n\n')
+        fall_through()
+        return
+        
+    else:
+        try:
+            following = driver.find_element_by_xpath("//section/main/div/header/section/ul/li[3]/a/span")
+        except:
+            following = driver.find_element_by_xpath("//section/main/div/header/section/ul/li[3]/span/span")
+        follow_data = following.text
+        follow_data = int(follow_data.replace(',',''))
+        print(f"< {now} >  =   타겟 팔로잉 데이터 : {follow_data}  \n")
+        if follow_data > 1000:
+            print(f"-------  이사람은 팔로잉 하고 있는 사람이 {follow_data} 명이 넘습니다 !!  ---------- \n\n")
+            fall_through()
+            return 
+            
+
+        else :
+            feed = driver.find_elements_by_xpath('//section/main//article//div[1]/a/div')[0].click() # 첫번째 사진 클릭
+            time.sleep(5.0)
+            like_condition = driver.find_element_by_xpath("//article/div[3]/section[1]/span[1]/button/div/span//*[name() = 'svg']")
+            like_condition_result = like_condition.get_attribute("aria-label")
+            if like_condition_result == "좋아요 취소":
+                print('----------------- 이미 좋아요를 누른 사진입니다 !! ----------------------\n\n')
+                backpage()
+                return 
+            time.sleep(random.randrange(10,20))        # 반복작업 대기시간
+            like_it = driver.find_elements_by_xpath(like) # 좋아요 누르는 버튼
+            time.sleep(random.randrange(8,19))        # 반복작업 대기시간
+            like_it[0].click()                         # 좋아요 버튼 클릭
+            total_like_number += 1                     # 전체 시도 횟수에 + 1 
+            success_like_number += 1                   # 좋아요 성공 횟수에 + 1
+            print(f'< {now} >  =   총 횟수 : {total_like_number}  |  좋아요 성공 :{success_like_number} 개\n') # 진행상황 안내
+            backpage()
+            return
+    
+
+def backpage():
+    time.sleep(random.randrange(9,23))        # 반복작업 대기시간
+    driver.back()                              # 뒷페이지로 이동
+    time.sleep(random.randrange(8,25))        # 반복작업 대기시간
+    driver.back()
+    time.sleep(random.randrange(7,28))        # 반복작업 대기시간
+    driver.back()                              # 뒷페이지로 이동
+    time.sleep(random.randrange(10,26))        # 반복작업 대기시간
+    return
+
+def fall_through ():                           # 비공개 계정이거나 특수한 상황일때
+    global total_like_number                   # 전체 횟수 전역 변수 설정
+    global Private_number                      # 실패 횟수 전역 변수 설정
+    now = time.strftime('%H시:%M분:%S초')
+    total_like_number += 1                     # 전체 진행횟수에 + 1
+    Private_number += 1                        # 좋아요 실패 횟수에 + 1
+    print(f'< {now} >  =   총 횟수 : {total_like_number}  |  비공개 계정 및 실패 : {Private_number} 개\n') # 전체 진행 상황 안내
+    time.sleep(random.randrange(1,6))
+    driver.back()                              # 뒷페이지로 이동                            
+    time.sleep(random.randrange(1,6))        # 반복작업 대기시간
+    driver.back()                              # 뒷페이지로 이동
+    time.sleep(random.randrange(1,6))        # 반복작업 대기시간
+    return
+
+
+def nextpage():
+    time.sleep(random.randrange(9,15))        # 반복작업 대기시간
+    next = driver.find_element_by_xpath("/html/body/div[5]/div[1]/div/div/a[2]").click()
+    time.sleep(random.randrange(4,14))
+    next = driver.find_element_by_xpath("/html/body/div[5]/div[1]/div/div/a[2]").click()
+    time.sleep(random.randrange(5,12))
+    return
+
+
+
+def like_two(x):
+    global tag_like 
+    now = time.strftime('%H시:%M분:%S초')
+    try:
+        like_condition = driver.find_element_by_xpath("//article/div[3]/section[1]/span[1]/button/div/span//*[name() = 'svg']")
+        like_condition_result = like_condition.get_attribute("aria-label")
+        if like_condition_result == "좋아요 취소":
+            print('----------- 이미 좋아요를 누른 사진입니다 !! --------------')
+            print()
+            print()
+            nextpage()
+            return
+        like_it = driver.find_elements_by_xpath(like)
+        time.sleep(random.randrange(10,18))
+        like_it[0].click()
+        tag_like += 1
+        print(f"< {now} > : '{x}' 의 총 작업 개수 : {tag_like} 개 입니다 !! ")
+        print()
+        if tag_like > 1 and tag_like  % 2 == 0:
+            print(f"{x}의 최신 게시물을 다시 불러오겠습니다. ")
+            print()
+            close = driver.find_element_by_xpath("/html/body/div[5]/div[3]/button/div").click()
+            time.sleep(2.0)
+            driver.refresh()
+            time.sleep(10.0)
+            frist_like()                
+            return
+        nextpage()
+        return
+    except:
+        print("페이지 로딩이 길어지는것 같습니다 다음 사진으로 넘어갑니다 !")
+        time.sleep(random.randrange(5,12))        # 반복작업 대기시간
+        next = driver.find_element_by_xpath("/html/body/div[5]/div[1]/div/div/a[2]").click()
+        time.sleep(random.randrange(6,13))
+        return
+
+
+
+# 타겟이 만약 두번째에 있을때 
+def if_target_second_action_function(x,follower_range):
+    global refresh_count
+    print(f"\n------------------  타겟 : {x} 시작  --------------------\n")
+    searchbar = driver.find_element_by_xpath('//section/nav/div[2]/div/div/div[2]/input') # 검색창 선택
+    time.sleep(5.0)
+    searchbar.send_keys(x)                     # 검색창에 입력할 타겟 입력
+    time.sleep(5.0)                            # 검색 대기시간 
+    move_id = driver.find_element_by_xpath('//section/nav/div[2]/div/div/div[2]/div[4]/div/a[2]/div/div[2]').click() # 타겟 선택 후 클릭
+    time.sleep(8.0)                            # 타겟 이동 대기시간
+
+    scroll_follower()
+    for number in range(1,follower_range+1):    # 한 계정당 반복 횟수
+        move_follower(number)     # 팔로워창 설정
+        try:
+            feed_like()     # 팔로워 피드 함수
+        except: 
+            fall_through()  # 좋아요 실패시 함수
+    driver.refresh()              # 새로고침 해줘야 새로운 팔로워들이 다시 보이는것 같음 
+    refresh_count += 1 
+    print(f'---------  다음 타겟으로 넘어가기  < {refresh_count} 번째 > !!!!  --------------\n')
+    time.sleep(5.0)               # 페이지 로딩 대기시간
+
+def frist_like():   # 첫번쨰 피드 사진 선택 
+    frist = driver.find_element_by_xpath("//section/main/article/div[2]/div/div[1]/div[1]/a/div").click()
+    time.sleep(random.randrange(3,7))
+    return
+
+
+def move_follower(number):    # 팔로워 누르는 함수
+    try:
+        move_follower = driver.find_element_by_xpath('//section/main//header/section/ul//a').click() # 팔로워 창 선택 클릭
+    except:
+        driver.back()
+        time.sleep(7.0)
+        move_follower = driver.find_element_by_xpath('//section/main//header/section/ul//a').click() # 팔로워 창 선택 클릭
+    time.sleep(random.randrange(10,25))        # 반복 작업은 대기시간 길게 두어서 의심 안받게 함
+    
+    try:
+        try:
+            driver.find_element_by_xpath('//div//ul/div/li[{0}]//span/a'.format(number)).click() #  팔로워들 누르는 반복적 작업
+            time.sleep(random.randrange(9,22))        # 반복 작업은 대기시간 길게 두어서 의심 안받게 함
+        except:
+            move_follower = driver.find_element_by_xpath('//section/main//header/section/ul//a').click() # 팔로워 창 선택 클릭
+            time.sleep(6.0)        # 대기 시간
+            driver.find_element_by_xpath('//div//ul/div/li[{0}]//span/a'.format(number)).click() #  팔로워들 누르는 반복적 작업
+            time.sleep(random.randrange(9,22))
+    except:
+        time.sleep(5.0)
+        pyautogui.moveTo(815,450, 2) # 스크롤 창으로 이동 상대적 주소라 마우스 가는곳으로 스크롤 창 맞춰줘야함 아니면 원하는곳으로 상대 주소 수정 해야할것
+        time.sleep(3.0) # 대기시간
+        for i in range(40): # 스크롤 반복 횟수
+            pyautogui.scroll(-15, x =815 , y = 450 ) # 15만큼 스크롤
+            time.sleep(0.5) # 딜레이 시간 반영##
+        driver.find_element_by_xpath('//div//ul/div/li[{0}]//span/a'.format(number)).click() #  팔로워들 누르는 반복적 작업
+        time.sleep(random.randrange(9,22))        # 반복 작업은 대기시간 길게 두어서 의심 안받게 함
+
+
+
+def tag_search(x):     # 타겟 설정 함수  ( 좋아요반사 태그 )
+    searchbar = driver.find_element_by_xpath('//section/nav/div[2]/div/div/div[2]/input') # 검색창 선택
+    time.sleep(3.0)
+    searchbar.send_keys(f"#{x}")                     # 검색창에 입력할 타겟 입력
+    time.sleep(4.0)                            # 검색 대기시간 
+    move_id = driver.find_element_by_xpath('//div[1]/section/nav/div[2]/div/div/div[2]/div[3]/div/div[2]/div/div[1]/a/div/div[2]/div[1]/div/div').click() # 타겟 선택 후 클릭
+    time.sleep(5.0)                            # 타겟 이동 대기시간
+    return
+
+
+def target_search(x):     # 타겟 설정 함수  ( 외국인 좋아요 )
+    time.sleep(3.0)
+    searchbar = driver.find_element_by_xpath('//section/nav/div[2]/div/div/div[2]/input') # 검색창 선택
+    time.sleep(3.0)
+    searchbar.send_keys(x)                     # 검색창에 입력할 타겟 입력
+    time.sleep(4.0)                            # 검색 대기시간 
+    move_id = driver.find_element_by_xpath('//section/nav/div[2]//div[2]/div[3]//div[2]//div[1]/a//div[2]').click() # 타겟 선택 후 클릭
+    time.sleep(5.0)                            # 타겟 이동 대기시간
+    return
+
+
+def scroll_follower (): # 팔로워창 데이터 스크롤
+    move_follower = driver.find_element_by_xpath('//section/main//header/section/ul//a').click() # 팔로워 창 선택 클릭
+    time.sleep(4.0)        # 대기 시간
+    pyautogui.moveTo(815,450, 2) # 스크롤 창으로 이동 상대적 주소라 마우스 가는곳으로 스크롤 창 맞춰줘야함 아니면 원하는곳으로 상대 주소 수정 해야할것
+    time.sleep(2.0) # 대기시간
+    for i in range(40): # 스크롤 반복 횟수
+        pyautogui.scroll(-15, x =815 , y = 450 ) # 15만큼 스크롤
+        time.sleep(0.5) # 딜레이 시간 반영##
+    driver.back() # 뒷 페이지 이동
+    time.sleep(3.0) # 대기시간
+
+def remove_list(final,target_list,like_type):
+    global now
+    now = time.strftime('%m월%d일 %H시:%M분')
+    if final == "y":
+        while True:
+            select = input("어떤 목록을 지울까요? (x 입력시 종료)\n")
+
+            if select in target_list:
+                print(f"{select} 가 삭제됩니다. \n")
+                target_list.remove(select)
+                print(f"{select} 삭제 완료.\n")
+                print(f"현재 목록 : {target_list}\n")
+
+            elif select == "x":
+                if like_type == 2:
+                    f = open("tag_list.txt",'a')
+                    f.write('\n')
+                    f.write(f"{now} : ")
+                    f.writelines(','.join(target_list))
+                    f.close()
+                    break
+                f = open("target_list.txt",'a')
+                f.write('\n')
+                f.write(f"{now} : ")
+                f.writelines(','.join(target_list))
+                f.close()    
+                break
+                
+            else:
+                print("존재 하지 않는 값입니다. 다시 입력해주세요.\n")
+                print(target_list,'\n\n')
+                
+    elif final == "n":
+        if like_type == 2:
+            f = open("tag_list.txt",'a')
+            f.write('\n')
+            f.write(f"{now} : ")
+            f.writelines(','.join(target_list))
+            f.close()
+            return
+        f = open("target_list.txt",'a')
+        f.write('\n')
+        f.write(f"{now} : ")
+        f.writelines(','.join(target_list))
+        f.close()
+        return
    
+
+def user_information():         # 사용자 입력 함수   
+    username = 'dae_2l'         # 사용자 아이디
+    password = 'FKA1eo2dlf34@#'    # 사용자 비밀번호
+    userid = driver.find_elements_by_name('username')[0].send_keys(username) # 유저 아이디 
+    time.sleep(2.0)                                                          # 아이디 입력후 대기시간
+    userpw = driver.find_elements_by_name('password')[0].send_keys(password) # 유저 패스워드
+    time.sleep(2.0)                                                          # 비밀번호 입력후 대기시간
+    driver.find_element_by_xpath('//*[@id="loginForm"]/div/div[3]/button').click() # 로그인 버튼 클릭
+    time.sleep(50.0)
+    
+    '''if usertime == "y":
+        time.sleep(50.0)       #로그인 버튼 누른후 대기시간 ( 2차 비밀번호 인증시간 , 만약 2차 인증이 없다면 5초정도로 줄여도됌 )
+        return
+    elif usertime == "n":
+        time.sleep(5.0)
+        return
+    '''
+
 
 ############################################################################################################
 # 작동 코드 
@@ -57,7 +358,7 @@ print("\n==================================")
 print("Welcome to automatic like system !! ")
 print("==================================\n")
 
-
+'''
 while True:
     name = input("사용할 아이디를 입력하세요 : \n")
     i = input(f"입력한 아이디가 {name} 이 맞습니까? (맞으면 y , 아니면 n )\n")
@@ -93,6 +394,7 @@ while True:
      
 print("\n 아이디와 비밀번호가 입력 되었습니다 ! 작업할 종류를 선택해주세요.  \n")
 
+'''
 
 while True:
     like_type = int(input("1. 팔로워 좋아요 작업    2. 좋아요 반사      3. 둘 다 하기 \n"))
@@ -244,8 +546,8 @@ refresh_count = 0           # 새로고침 카운트
 tag_like  = 0               # 태그 좋아요 갯수
 
 
-#user_information(name,pass_word,usertime)              # 유저 정보 입력 
-user_information()
+user_information()              # 유저 정보 입력 
+#user_information()
 
 try:
     time.sleep(5.0)
